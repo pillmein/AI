@@ -1,0 +1,1 @@
+OPENAI_API_KEY = "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"  # 🔹 OpenAI API 키 입력 필요
