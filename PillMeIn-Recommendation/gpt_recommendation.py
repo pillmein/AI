@@ -1,12 +1,16 @@
 import pandas as pd
 import psycopg2
-from sentence_transformers import SentenceTransformer
 import faiss
 import openai
-from config import OPENAI_API_KEY
+import numpy as np
+import pickle
+from config import OPENAI_API_KEY, FINE_TUNED_MODEL_ID
+from sentence_transformers import SentenceTransformer
 
 # OpenAI API 키 설정
 openai.api_key = OPENAI_API_KEY
+model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+embedder = SentenceTransformer(model_name)
 
 # PostgreSQL에서 데이터 가져오기
 def fetch_data_from_db():
@@ -34,6 +38,7 @@ def load_data():
     df_items = fetch_data_from_db()
 
     if df_items is not None:
+        """
         # 1. SentenceTransformer로 텍스트 임베딩 생성
         model_name = 'sentence-transformers/all-MiniLM-L6-v2'
         embedder = SentenceTransformer(model_name)
@@ -45,6 +50,13 @@ def load_data():
         ).tolist()
 
         embeddings = embedder.encode(text_data)
+        """
+
+        # 저장된 임베딩 로드
+        embeddings = np.load("embeddings.npy")
+        # 데이터프레임 로드
+        with open("index.pkl", "rb") as f:
+            df_items = pickle.load(f)
 
         # 2. FAISS 인덱스에 임베딩 추가
         dimension = embeddings.shape[1]  # 임베딩 벡터 차원
@@ -53,7 +65,7 @@ def load_data():
 
         print("✅ 데이터 로드 및 임베딩 생성 완료!")
 
-        return df_items, embedder, index  # 데이터를 반환
+        return df_items, index  # 데이터를 반환
 
     else:
         print("❌ 데이터프레임이 None이므로 실행을 중단합니다.")
@@ -66,9 +78,54 @@ def search(query, df_items, embedder, index, k=3):
     results = df_items.iloc[indices[0]]
     return results
 
-def rag_qa_system(question, df_items, embedder, index):
+def generate_health_summary(survey_data):
+    """사용자의 건강 설문 데이터를 기반으로 건강 상태 요약을 생성하는 함수"""
+    # 1) LLM이 이해할 수 있는 Context 생성
+    context = "\n".join([
+        f"- 질문: {item['question']}\n  응답: {item['answer']}\n  우려사항: {item['concern']}\n  필요한 영양소: {', '.join(item['required_nutrients']) if isinstance(item['required_nutrients'], list) else item['required_nutrients']}"
+        for item in survey_data
+    ])
+
+    # 2) GPT에 전달할 프롬프트 작성
+    prompt = f"""
+    당신은 전문 건강 분석 AI입니다. 아래 건강 설문 데이터를 기반으로 각 항목에 대해 답변을 해석하고, 우선순위를 매기세요. 반드시 한국어로 답하세요.
+
+    건강 설문 데이터:
+    {context}
+
+    답변 형식:
+    1순위: "사용자는 [응답]하므로, [우려사항]이 가장 우려됩니다. 이에 따라 [필요한 영양소] 보충이 필요할 수 있습니다."
+    2순위: "사용자는 [응답]하므로, [우려사항]이 두 번째로 우려됩니다. 이에 따라 [필요한 영양소] 보충이 필요할 수 있습니다."
+    3순위: "사용자는 [응답]하므로, [우려사항]이 세 번째로 우려됩니다. 이에 따라 [필요한 영양소] 보충이 필요할 수 있습니다."
+
+    답변 예시:
+    1순위: 사용자는 매우 자주 시력이 저하되거나 눈이 피로해지므로, 시력 저하와 안구 건조증이 우려됩니다. 이에 따라 비타민 A, 오메가-3 지방산 보충이 필요할 수 있습니다.
+
+    심각도 기준:
+    - 만성 질환 관련 문제는 높은 우선순위
+    - 식습관이 매우 불균형할 경우 높은 우선순위
+    - 특정 영양소 결핍 위험이 클 경우 높은 우선순위
+
+    사용자가 '매우 자주 있음'이라고 응답한 문제가 가장 심각한 문제인 것으로 판단하고, 건강 데이터를 기반으로 우선순위를 결정하세요.
+
+    이제 사용자의 건강 상태를 답변 형식에 맞게 1~3순위로 정리하고, 그 근거를 함께 제시하세요.
+    """
+
+    # 3) GPT API 호출
+    response = openai.chat.completions.create(
+        model=FINE_TUNED_MODEL_ID,  # 파인튜닝된 모델 사용
+        messages=[
+            {"role": "system", "content": "You are an AI health expert providing concise health summaries."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=500
+    )
+
+    return response.choices[0].message.content
+
+def rag_qa_system(question, df_items, index):
     """GPT-3.5 Turbo를 이용한 RAG 시스템"""
-    if df_items is None or embedder is None or index is None:
+    if df_items is None or index is None:
         print("❌ 데이터가 로드되지 않았습니다. 먼저 load_data()를 실행하세요.")
         return None
 
@@ -104,7 +161,7 @@ def rag_qa_system(question, df_items, embedder, index):
 
     3. 건강 문제: (건강 문제 3)
        추천 영양제: (제품명 3)
-       주요 원재료: (영양제 3의 주요 원재료)
+       주요 원재료: (영양제 3의 주요 원재료) 
        효과: (영양제 3의 효과)
 
     위의 형식을 유지하고, 제공된 참고 정보에서 적절한 제품을 선택하여 추천하세요.
@@ -122,4 +179,4 @@ def rag_qa_system(question, df_items, embedder, index):
 
 # 직접 실행할 경우만 load_data() 실행
 if __name__ == "__main__":
-    df_items, embedder, index = load_data()
+    df_items, index = load_data()
