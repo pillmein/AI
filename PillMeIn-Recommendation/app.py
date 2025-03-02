@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
 from flasgger import Swagger
 import openai
+import jwt
+from flasgger import swag_from
 from sentence_transformers import SentenceTransformer
-from config import OPENAI_API_KEY
+from config import OPENAI_API_KEY, SECRET_KEY
 from dbconnect import get_user_survey
 from gpt_recommendation import rag_qa_system, load_data, generate_health_summary
 from naver_shopping_service import NaverShoppingService
@@ -22,77 +24,99 @@ if df_items is None or index is None:
 
 # Flask 인스턴스 생성
 app = Flask(__name__)
-Swagger(app)
+
+# ✅ Swagger에서 Access Token 입력 필드 추가
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "OCR & Supplement Analysis API",
+        "description": "Google Vision을 사용한 OCR 및 GPT를 활용한 영양제 분석 API",
+        "version": "1.0.0"
+    },
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "액세스 토큰을 입력하세요. (예: Bearer your_access_token)"
+        }
+    },
+    "security": [{"Bearer": []}]
+}
+
+swagger = Swagger(app, template=swagger_template)
+
+
+def verify_token():
+    """Access Token 검증 함수"""
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
+
+    try:
+        # ✅ "Bearer <TOKEN>" 형식으로 전송되므로, "Bearer " 제거
+        token = auth_header.split(" ")[1]
+
+        # ✅ JWT 검증 (토큰 서명 확인)
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return decoded_token, None  # 검증 성공 시 토큰 정보 반환
+
+    except jwt.ExpiredSignatureError:
+        return None, jsonify({"error": "토큰이 만료되었습니다."}), 401
+    except jwt.InvalidTokenError:
+        return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
+
 
 @app.route("/recommend", methods=["POST"])
+@swag_from({
+    'tags': ['Supplement Recommendation'],
+    'summary': '유저 건강 데이터를 기반으로 3가지 영양제를 추천합니다.',
+    'security': [{"Bearer": []}],  # ✅ API 호출 시 Access Token 필수
+    'parameters': [
+        {
+            'name': 'userId',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'userId': {'type': 'integer', 'example': 1}
+                }
+            }
+        }
+    ],
+    'responses': {
+        200: {
+            'description': '추천된 영양제 리스트',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'userId': {'type': 'integer'},
+                    'recSupplement1': {'type': 'object'},
+                    'recSupplement2': {'type': 'object'},
+                    'recSupplement3': {'type': 'object'}
+                }
+            }
+        },
+        400: {'description': '잘못된 요청입니다. (userId 없음)'},
+        401: {'description': '유효하지 않은 토큰입니다.'},
+        500: {'description': '내부 서버 에러'}
+    }
+})
 def recommend_supplements():
-    """
-    유저 ID를 기반으로 건강 문제를 분석하고 3가지 영양제를 추천합니다.
-    ---
-    parameters:
-      - name: user_id
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            user_id:
-              type: integer
-              example: 1
-    responses:
-      200:
-        description: 추천된 영양제 리스트
-        schema:
-          type: object
-          properties:
-            user_id:
-              type: integer
-            recSupplement1:
-              type: object
-              properties:
-                name:
-                  type: string
-                healthIssue:
-                  type: string
-                imageUrl:
-                  type: string
-                ingredients:
-                  type: string
-                effect:
-                  type: string
-            recSupplement2:
-              type: object
-              properties:
-                name:
-                  type: string
-                healthIssue:
-                  type: string
-                imageUrl:
-                  type: string
-                ingredients:
-                  type: string
-                effect:
-                  type: string
-            recSupplement3:
-              type: object
-              properties:
-                name:
-                  type: string
-                healthIssue:
-                  type: string
-                imageUrl:
-                  type: string
-                ingredients:
-                  type: string
-                effect:
-                  type: string
-    """
-    user_id = request.json.get("user_id")
-    if not user_id:
-        return jsonify({"error": "user_id가 필요합니다."}), 400
+    """사용자 건강 데이터를 기반으로 3가지 영양제 추천"""
+    # ✅ Access Token 검증
+    token_data, error_response = verify_token()
+    if error_response:
+        return error_response  # 토큰이 유효하지 않으면 오류 반환
+
+    userId = request.json.get("userId")
+    if not userId:
+        return jsonify({"error": "userId가 필요합니다."}), 400
 
     # 1. 유저 설문 결과 가져오기
-    survey_data = get_user_survey(user_id)
+    survey_data = get_user_survey(userId)
     if not survey_data:
         return jsonify({"error": "설문 데이터를 찾을 수 없습니다."}), 404
 
@@ -126,7 +150,7 @@ def recommend_supplements():
     for rec in recs:
         supplement_name = rec.get("name")
         if supplement_name:
-            image_url = naver_service.search_image_url(supplement_name)  # 네이버 API 호출
+            image_url = naver_service.search_image_url(supplement_name)
             rec["imageUrl"] = image_url if image_url else "이미지 없음"
 
     # 6. 결과 반환
@@ -134,11 +158,12 @@ def recommend_supplements():
         return jsonify({"error": "추천 영양제 파싱 오류"}), 500
 
     return jsonify({
-        "user_id": user_id,
+        "userId": userId,
         "recSupplement1": recs[0],
         "recSupplement2": recs[1],
         "recSupplement3": recs[2]
     })
+
 
 if __name__ == "__main__":
     print("✅ Flask 서버 시작 중...")
