@@ -50,7 +50,7 @@ def verify_token():
         return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
 
 
-@app.route('/upload', methods=['POST'])
+@app.route('/analyze', methods=['POST'])
 @swag_from({
     'tags': ['OCR & Supplement Analysis'],
     'summary': '이미지를 업로드하고 OCR 및 AI 분석을 수행합니다.',

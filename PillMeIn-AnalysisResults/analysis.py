@@ -123,6 +123,66 @@ def save_analysis():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+@app.route('/delete_analysis', methods=['DELETE'])
+@swag_from({
+    'tags': ['Supplement Analysis'],
+    'summary': '특정 분석 데이터를 삭제',
+    'security': [{"Bearer": []}],  # ✅ Access Token 필요
+    'parameters': [
+        {
+            'name': 'id',
+            'in': 'query',
+            'required': True,
+            'type': 'integer',
+            'description': '삭제할 분석 데이터 ID'
+        }
+    ],
+    'responses': {
+        200: {'description': '삭제 성공'},
+        400: {'description': '잘못된 요청입니다. (id 없음)'},
+        401: {'description': '유효하지 않은 토큰입니다.'},
+        404: {'description': '삭제할 데이터가 없습니다.'},
+        500: {'description': '내부 서버 에러'}
+    }
+})
+def delete_analysis():
+    """특정 분석 데이터를 삭제"""
+    # ✅ Access Token 검증
+    token_data, error_response = verify_token()
+    if error_response:
+        return error_response  # 토큰이 유효하지 않으면 오류 반환
+
+    # ✅ 요청에서 id 가져오기
+    analysis_id = request.args.get("id", type=int)
+    if not analysis_id:
+        return jsonify({"error": "id가 필요합니다."}), 400
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # ✅ id가 존재하는지 확인
+        cur.execute("SELECT COUNT(*) FROM analyzed_supplements WHERE id = %s", (analysis_id,))
+        count = cur.fetchone()[0]
+
+        if count == 0:
+            return jsonify({"error": f"id={analysis_id}의 분석 데이터가 존재하지 않습니다."}), 404
+
+        # ✅ 삭제 실행
+        cur.execute("DELETE FROM analyzed_supplements WHERE id = %s", (analysis_id,))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({"message": f"id={analysis_id}의 분석 데이터를 삭제했습니다."}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     print("✅ Flask 서버 시작 중...")
     app.run(host='0.0.0.0', port=5000, debug=True)
