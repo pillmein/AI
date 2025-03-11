@@ -1,0 +1,7 @@
+Flask
+psycopg2
+openai
+flasgger
+sentence-transformers
+pandas
+faiss-cpu
