@@ -63,9 +63,9 @@ def verify_token():
         return decoded_token, None  # 검증 성공 시 토큰 정보 반환
 
     except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."}), 401
+        return None, jsonify({"error": "토큰이 만료되었습니다."})
     except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
+        return None, jsonify({"error": "유효하지 않은 토큰입니다."})
 
 
 @app.route("/recommend", methods=["POST"])
@@ -111,12 +111,12 @@ def recommend_supplements():
     if error_response:
         return error_response  # 토큰이 유효하지 않으면 오류 반환
 
-    userId = request.json.get("userId")
-    if not userId:
+    user_id = request.json.get("userId")
+    if not user_id:
         return jsonify({"error": "userId가 필요합니다."}), 400
 
     # 1. 유저 설문 결과 가져오기
-    survey_data = get_user_survey(userId)
+    survey_data = get_user_survey(user_id)
     if not survey_data:
         return jsonify({"error": "설문 데이터를 찾을 수 없습니다."}), 404
 
@@ -125,7 +125,7 @@ def recommend_supplements():
     question = f"사용자의 건강 문제는 {health_summary} 입니다. 이 사용자의 건강 문제 3가지에 각각 도움이 되는 영양제를 3가지 찾아줘."
 
     # 3. 추천 영양제 생성
-    recommendation = rag_qa_system(question, df_items, index)
+    recommendation = rag_qa_system(question, df_items, index, user_id)
 
     # 4. 포맷 정리
     rec_lines = recommendation.split("\n")
@@ -158,7 +158,7 @@ def recommend_supplements():
         return jsonify({"error": "추천 영양제 파싱 오류"}), 500
 
     return jsonify({
-        "userId": userId,
+        "userId": user_id,
         "recSupplement1": recs[0],
         "recSupplement2": recs[1],
         "recSupplement3": recs[2]

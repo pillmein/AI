@@ -69,6 +69,7 @@ def verify_token():
             'type': 'object',
             'properties': {
                 'userId': {'type': 'integer'},
+                'name': {'type': 'string'},
                 'mainIngredients': {'type': 'array', 'items': {'type': 'string'}},
                 'effects': {'type': 'array', 'items': {'type': 'string'}},
                 'precautions': {'type': 'array', 'items': {'type': 'string'}},
@@ -95,8 +96,9 @@ def save_analysis():
         return jsonify({"error": "잘못된 요청입니다."}), 400
 
     user_id = data.get("userId")
-    if not user_id:
-        return jsonify({"error": "userId가 필요합니다."}), 400
+    name = data.get("name")
+    if not user_id or not name:
+        return jsonify({"error": "userId와 name이 필요합니다."}), 400
 
     ingredients = ", ".join(data.get("mainIngredients", []))
     effects = ", ".join(data.get("effects", []))
@@ -109,11 +111,11 @@ def save_analysis():
         cur = conn.cursor()
 
         query = """
-        INSERT INTO analyzed_supplements (created_at, updated_at, user_id, ingredients, effects, warnings, for_who)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO analyzed_supplements (created_at, updated_at, user_id, name, ingredients, effects, warnings, for_who)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id;
         """
-        cur.execute(query, (created_at, updated_at, user_id, ingredients, effects, warnings, for_who))
+        cur.execute(query, (created_at, updated_at, user_id, name, ingredients, effects, warnings, for_who))
         result_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
@@ -178,6 +180,138 @@ def delete_analysis():
         conn.close()
 
         return jsonify({"message": f"id={analysis_id}의 분석 데이터를 삭제했습니다."}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/get_supplements', methods=['GET'])
+@swag_from({
+    'tags': ['Supplement Analysis'],
+    'summary': '사용자가 저장한 영양제 목록을 가져옵니다.',
+    'security': [{"Bearer": []}],  # ✅ API 호출 시 JWT 인증 필요
+    'parameters': [
+        {
+            'name': 'userId',
+            'in': 'query',
+            'required': True,
+            'type': 'integer',
+            'example': 1,
+            'description': '조회할 사용자의 ID'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': '사용자가 저장한 영양제 목록',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'supplements': {'type': 'array', 'items': {'type': 'string'}}
+                }
+            }
+        },
+        400: {'description': '잘못된 요청입니다. (userId 없음)'},
+        401: {'description': '유효하지 않은 토큰입니다.'},
+        500: {'description': '내부 서버 에러'}
+    }
+})
+def get_supplements():
+    """사용자가 저장한 영양제 이름 목록을 가져오는 API (GET 방식)"""
+    # ✅ Access Token 검증
+    token_data, error_response = verify_token()
+    if error_response:
+        return error_response  # 토큰이 유효하지 않으면 오류 반환
+
+    # ✅ URL에서 userId 가져오기 (쿼리 파라미터)
+    user_id = request.args.get("userId", type=int)
+
+    if not user_id:
+        return jsonify({"error": "userId가 필요합니다."}), 400
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # ✅ 특정 사용자의 영양제 이름 가져오기
+        cur.execute("SELECT name FROM analyzed_supplements WHERE user_id = %s", (user_id,))
+        supplements = [row[0] for row in cur.fetchall()]  # 리스트로 변환
+
+        cur.close()
+        conn.close()
+
+        return jsonify({"supplements": supplements}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/get_supplement/<int:supplement_id>', methods=['GET'])
+@swag_from({
+    'tags': ['Supplement Analysis'],
+    'summary': '특정 ID의 영양제 정보를 조회합니다.',
+    'parameters': [
+        {
+            'name': 'supplement_id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': '조회할 영양제의 ID'
+        }
+    ],
+    'responses': {
+        200: {
+            'description': '영양제 정보 조회 성공',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'id': {'type': 'integer'},
+                    'name': {'type': 'string'},
+                    'effects': {'type': 'array', 'items': {'type': 'string'}},
+                    'for_who': {'type': 'array', 'items': {'type': 'string'}},
+                    'ingredients': {'type': 'array', 'items': {'type': 'string'}},
+                    'warnings': {'type': 'array', 'items': {'type': 'string'}}
+                }
+            }
+        },
+        400: {'description': '잘못된 요청입니다.'},
+        404: {'description': '해당 ID의 영양제를 찾을 수 없습니다.'},
+        500: {'description': '내부 서버 에러'}
+    }
+})
+def get_supplement(supplement_id):
+    """특정 ID(PK)로 영양제 정보 조회 API"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # ✅ 특정 ID의 영양제 정보 가져오기
+        query = """
+        SELECT id, name, effects, for_who, ingredients, warnings
+        FROM analyzed_supplements
+        WHERE id = %s;
+        """
+        cur.execute(query, (supplement_id,))
+        result = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        if not result:
+            return jsonify({"error": "해당 ID의 영양제를 찾을 수 없습니다."}), 404
+
+        # ✅ 문자열을 리스트로 변환 (콤마 기준)
+        def split_to_list(value):
+            return value.split(", ") if value else []
+
+        supplement_info = {
+            "id": result[0],
+            "name": result[1],
+            "effects": split_to_list(result[2]),
+            "for_who": split_to_list(result[3]),
+            "ingredients": split_to_list(result[4]),
+            "warnings": split_to_list(result[5])
+        }
+
+        return jsonify(supplement_info), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
