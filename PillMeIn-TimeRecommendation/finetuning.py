@@ -4,7 +4,7 @@ from config import OPENAI_API_KEY
 # OpenAI API 키 설정
 openai.api_key = OPENAI_API_KEY
 
-# 데이터셋 업로드
+# 새로운 데이터셋 업로드
 response = openai.files.create(
     file=open("dataset.jsonl", "rb"),
     purpose="fine-tune"
@@ -19,9 +19,6 @@ fine_tune_response = openai.fine_tuning.jobs.create(
 )
 fine_tune_id = fine_tune_response.id
 print(f"🚀 Fine-tuning 시작! Fine-tune ID: {fine_tune_id}")
-
-# Fine-tune ID 입력
-fine_tune_id = "ftjob-Rhw7a8bg3tU6dd02TeXnqDuz"
 
 # 학습 진행 상태 확인
 status = openai.fine_tuning.jobs.retrieve(fine_tune_id)

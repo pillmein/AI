@@ -7,33 +7,37 @@ from datetime import datetime, timedelta
 # PubMed API 키 (필요하면 설정)
 PUBMED_API_KEY = "2dd265c0dd21aec9aaa877f6570f6799ea09"
 
-# 설문 데이터 기반 검색 키워드
-survey_keywords = [
-    "physical activity AND immune function",
-    "sedentary lifestyle AND musculoskeletal disorders",
-    "sleep duration AND immune function",
-    "screen time AND eye health",
-    "caffeine consumption AND hydration",
-    "irregular meals AND metabolic health",
-    "alcohol consumption AND liver function",
-    "chronic fatigue AND micronutrient deficiency",
-    "stress AND immune function",
-    "digestive issues AND probiotics",
-    "headaches AND micronutrient deficiency",
-    "frequent colds AND immune function",
-    "skin elasticity AND collagen",
-    "sudden weight change AND hormonal imbalance",
-    "dieting AND nutritional deficiency",
-    "sleep disturbances AND melatonin",
-    "cold hands and feet AND circulation",
-    "vision problems AND vitamin A",
-    "joint pain AND omega-3",
-    "memory decline AND vitamin B",
-    "brittle nails and hair loss AND biotin"
+# 영양성분과 복용 시간 관련 키워드
+nutrient_keywords = [
+    "vitamin A absorption AND best time to take",
+    "vitamin B1 metabolism AND timing",
+    "vitamin B6 absorption AND morning vs evening",
+    "vitamin B12 AND best time to take",
+    "vitamin C supplement AND absorption rate",
+    "vitamin D metabolism AND sunlight exposure",
+    "vitamin E absorption AND meal timing",
+    "vitamin K supplement AND best time to take",
+    "calcium supplement AND absorption timing",
+    "magnesium supplement AND bedtime",
+    "iron supplement AND empty stomach vs meal",
+    "zinc supplement AND morning vs night",
+    "omega-3 supplement AND best time",
+    "probiotics AND morning vs night",
+    "fiber supplement AND timing",
+    "collagen supplement AND best absorption",
+    "creatine AND pre-workout vs post-workout",
+    "glucosamine AND joint health timing",
+    "melatonin supplement AND ideal bedtime",
+    "caffeine metabolism AND best intake time",
+    "coenzyme Q10 AND best absorption",
+    "selenium AND antioxidant absorption",
+    "L-carnitine AND fat burning timing",
+    "MSM supplement AND joint health benefits",
+    "ashwagandha AND stress relief timing"
 ]
 
-# PubMed에서 논문 검색하는 함수 (설문 기반)
-def search_pubmed(survey_keywords, pubmed_api_key):
+# PubMed에서 논문 검색하는 함수
+def search_pubmed(nutrient_keywords, pubmed_api_key):
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
     articles = []
     collected_article_ids = set()
@@ -41,12 +45,12 @@ def search_pubmed(survey_keywords, pubmed_api_key):
     # 최근 5년간 논문 검색
     start_date = (datetime.now() - timedelta(days=5*365)).strftime('%Y/%m/%d')
 
-    for keyword in survey_keywords:
+    for keyword in nutrient_keywords:
         search_url = f"{base_url}/esearch.fcgi"
         params = {
             "db": "pubmed",
             "term": keyword,
-            "retmax": 5,  # 검색 결과 최대 개수
+            "retmax": 5,
             "api_key": pubmed_api_key,
             "retmode": "json",
             "mindate": start_date,
@@ -93,12 +97,12 @@ def search_pubmed(survey_keywords, pubmed_api_key):
 
     return articles
 
-# 논문 제목을 기반으로 질문 생성
+# 논문 제목을 기반으로 질문 생성 (복용 시간대 관련)
 def generate_question_from_article(title):
     """
     논문 제목을 기반으로 질문을 생성하는 함수
     """
-    return f"{title}에 대한 연구 결과는 무엇인가요?"
+    return f"{title}에 따르면, 이 성분은 언제 복용하는 것이 가장 효과적인가?"
 
 # 논문 데이터를 QA 데이터셋으로 변환
 def convert_articles_to_qa(articles):
@@ -114,7 +118,7 @@ def convert_articles_to_qa(articles):
 
         qa_data.append({
             "messages": [
-                {"role": "system", "content": "당신은 건강 전문가입니다."},
+                {"role": "system", "content": "당신은 영양제 복용 전문가입니다."},
                 {"role": "user", "content": question},
                 {"role": "assistant", "content": abstract}  # 논문의 초록을 답변으로 사용
             ]
@@ -124,7 +128,7 @@ def convert_articles_to_qa(articles):
 
 # 실행
 if __name__ == "__main__":
-    articles = search_pubmed(survey_keywords, PUBMED_API_KEY)
+    articles = search_pubmed(nutrient_keywords, PUBMED_API_KEY)
 
     if articles:
         qa_data = convert_articles_to_qa(articles)

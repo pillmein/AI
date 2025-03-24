@@ -263,11 +263,11 @@ def get_user_survey(user_id):
     try:
         # 데이터베이스 연결
         conn = psycopg2.connect(
-            host=db_params["host"],
-            dbname=db_params["dbname"],
-            user=db_params["user"],
-            password=db_params["password"],
-            port=db_params["port"]
+            host="127.0.0.1",
+            port="5432",
+            database="test",
+            user="postgres",
+            password="ummong1330"
         )
         cursor = conn.cursor()
 
@@ -297,6 +297,15 @@ def get_user_survey(user_id):
                         "required_nutrients": meta["required_nutrients"]
                     }
                     survey_data.append(entry)
+
+            health_purpose = row.get("health_purpose", "").strip()  # 공백 제거
+            if health_purpose:  # 값이 있을 때만 추가
+                survey_data.append({
+                    "question": "영양제 섭취 목적",
+                    "answer": health_purpose,
+                    "concern": "사용자가 원하는 건강 목표",
+                    "required_nutrients": []
+                })
 
         # ✅ JSON 내용 리턴
         return survey_data
