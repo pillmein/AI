@@ -1,5 +1,0 @@
-{
-    "DATABASE_URL": "mysql+pymysql://ra:rakoscom!@10.0.23.7:3306/ra",
-    "ENGINE_URI": "presto://10.0.22.14:18285/tssy_hd_01",
-    "DEBUG": true
-}

@@ -1,4 +1,0 @@
-Flask
-google-cloud-vision
-openai
-flasgger

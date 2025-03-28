@@ -5,3 +5,5 @@ flasgger
 sentence-transformers
 pandas
 faiss-cpu
+numpy
+google-cloud-vision

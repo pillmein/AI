@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import jwt  # JWT 토큰 검증을 위한 라이브러리
 from ocr import extractTextWithGoogleVision
-from gpt_summary import summarizeSupplementInfo
+from ocr_gpt_summary import summarizeSupplementInfo
 from flasgger import Swagger, swag_from
 from config import SECRET_KEY
 

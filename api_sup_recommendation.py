@@ -6,7 +6,7 @@ from flasgger import swag_from
 from sentence_transformers import SentenceTransformer
 from config import OPENAI_API_KEY, SECRET_KEY
 from dbconnect import get_user_survey
-from gpt_recommendation import rag_qa_system, load_data, generate_health_summary
+from gpt_sup_recommendation import rag_qa_system, load_data, generate_health_summary
 from naver_shopping_service import NaverShoppingService
 
 # OpenAI API 키 설정

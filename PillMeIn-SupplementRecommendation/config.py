@@ -1,3 +1,0 @@
-OPENAI_API_KEY = "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"  # 🔹 OpenAI API 키 입력 필요
-FINE_TUNED_MODEL_ID = "ft:gpt-3.5-turbo-0125:personal::B0LjeTdb"
-SECRET_KEY = "EvmYUavrGG7FBnjXFrAVyv2pSpkwPE/jO2j/ecC4vz4="
