@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify
-import jwt  # JWT 토큰 검증을 위한 라이브러리
 from ocr import extractTextWithGoogleVision
 from ocr_gpt_summary import summarizeSupplementInfo
 from flasgger import Swagger, swag_from
 from config import SECRET_KEY
+from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 app = Flask(__name__)
+
+app.config["JWT_SECRET_KEY"] = SECRET_KEY
+jwt = JWTManager(app)
 
 # ✅ Swagger 설정 (Authorization 헤더 추가)
 swagger_template = {
@@ -29,28 +32,9 @@ swagger_template = {
 swagger = Swagger(app, template=swagger_template)
 
 
-def verify_token():
-    """Access Token 검증 함수"""
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header:
-        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
-
-    try:
-        # ✅ "Bearer <TOKEN>" 형식으로 전송되므로, "Bearer " 제거
-        token = auth_header.split(" ")[1]
-
-        # ✅ JWT 검증 (토큰 서명 확인)
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token, None  # 검증 성공 시 토큰 정보 반환
-
-    except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."}), 401
-    except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
-
 
 @app.route('/analyze', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['OCR & Supplement Analysis'],
     'summary': '이미지를 업로드하고 OCR 및 AI 분석을 수행합니다.',
@@ -86,11 +70,6 @@ def verify_token():
 })
 def uploadImages():
     """사용자가 이미지를 업로드하면 OCR → GPT 분석 → JSON 반환"""
-    # ✅ Access Token 검증
-    token_data, error_response = verify_token()
-    if error_response:
-        return error_response  # 토큰이 유효하지 않으면 오류 반환
-
     if 'images' not in request.files:
         return jsonify({"error": "이미지를 업로드해주세요."}), 400
 

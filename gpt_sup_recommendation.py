@@ -4,7 +4,7 @@ import faiss
 import openai
 import numpy as np
 import pickle
-from config import OPENAI_API_KEY, FINE_TUNED_MODEL_ID
+from config import OPENAI_API_KEY, FINE_TUNED_MODEL_ID, DB_CONFIG
 from sentence_transformers import SentenceTransformer
 
 # OpenAI API 키 설정
@@ -17,13 +17,7 @@ embedder = SentenceTransformer(model_name)
 def fetch_data_from_db():
     try:
         # PostgreSQL 연결
-        conn = psycopg2.connect(
-            host="127.0.0.1",  # 또는 클라우드 DB 주소
-            port="5432",  # PostgreSQL 포트
-            database="test",  # 데이터베이스 이름
-            user="postgres",  # 사용자 이름
-            password="ummong1330"  # 비밀번호
-        )
+        conn = psycopg2.connect(**DB_CONFIG)
         query = "SELECT id, effects, ingredients, name, warnings FROM api_supplements"
         df = pd.read_sql(query, conn)
         conn.close()
@@ -37,13 +31,7 @@ def fetch_data_from_db():
 def fetch_user_supplements(user_id):
     """사용자가 복용 중인 영양제 정보를 데이터베이스에서 가져오는 함수"""
     try:
-        conn = psycopg2.connect(
-            host="127.0.0.1",
-            port="5432",
-            database="test",
-            user="postgres",
-            password="ummong1330"
-        )
+        conn = psycopg2.connect(**DB_CONFIG)
         query = f"""
         SELECT supplement_name, ingredients
         FROM user_supplements

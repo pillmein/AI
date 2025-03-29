@@ -1,23 +1,17 @@
 from flask import Flask, request, jsonify
 import psycopg2
-import jwt  # ✅ JWT 인증 추가
 from flasgger import Swagger, swag_from
 from datetime import datetime
-from config import SECRET_KEY
-
-# ✅ PostgreSQL 연결 설정
-DB_CONFIG = {
-    "host": "127.0.0.1",
-    "dbname": "test",
-    "user": "postgres",
-    "password": "ummong1330",
-    "port": "5432"
-}
+from config import SECRET_KEY, DB_CONFIG
+from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
 app = Flask(__name__)
+
+app.config["JWT_SECRET_KEY"] = SECRET_KEY
+jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -39,27 +33,10 @@ swagger_template = {
 }
 swagger = Swagger(app, template=swagger_template)
 
-def verify_token():
-    """Access Token 검증 함수"""
-    auth_header = request.headers.get("Authorization")
 
-    if not auth_header:
-        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
-
-    try:
-        # ✅ "Bearer <TOKEN>" 형식이므로 "Bearer " 제거
-        token = auth_header.split(" ")[1]
-
-        # ✅ JWT 검증 (서명 확인)
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token, None  # 검증 성공 시 토큰 정보 반환
-
-    except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."}), 401
-    except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
 
 @app.route('/save_analysis', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['Supplement Analysis'],
     'summary': 'OCR 분석 결과를 DB에 저장',
@@ -68,7 +45,6 @@ def verify_token():
         {'name': 'body', 'in': 'body', 'required': True, 'schema': {
             'type': 'object',
             'properties': {
-                'userId': {'type': 'integer'},
                 'name': {'type': 'string'},
                 'mainIngredients': {'type': 'array', 'items': {'type': 'string'}},
                 'effects': {'type': 'array', 'items': {'type': 'string'}},
@@ -86,16 +62,11 @@ def verify_token():
 })
 def save_analysis():
     """OCR 분석 결과를 DB에 저장"""
-    # ✅ 액세스 토큰 검증
-    token_data, error_response = verify_token()
-    if error_response:
-        return error_response  # 인증 실패 시 오류 반환
-
     data = request.get_json()
     if not data:
         return jsonify({"error": "잘못된 요청입니다."}), 400
 
-    user_id = data.get("userId")
+    user_id = get_jwt_identity()
     name = data.get("name")
     if not user_id or not name:
         return jsonify({"error": "userId와 name이 필요합니다."}), 400
@@ -128,6 +99,7 @@ def save_analysis():
 
 
 @app.route('/delete_analysis', methods=['DELETE'])
+@jwt_required()
 @swag_from({
     'tags': ['Supplement Analysis'],
     'summary': '특정 분석 데이터를 삭제',
@@ -151,11 +123,6 @@ def save_analysis():
 })
 def delete_analysis():
     """특정 분석 데이터를 삭제"""
-    # ✅ Access Token 검증
-    token_data, error_response = verify_token()
-    if error_response:
-        return error_response  # 토큰이 유효하지 않으면 오류 반환
-
     # ✅ 요청에서 id 가져오기
     analysis_id = request.args.get("id", type=int)
     if not analysis_id:
@@ -185,21 +152,13 @@ def delete_analysis():
         return jsonify({"error": str(e)}), 500
 
 
+
 @app.route('/get_supplements', methods=['GET'])
+@jwt_required()
 @swag_from({
     'tags': ['Supplement Analysis'],
     'summary': '사용자가 저장한 영양제 목록을 가져옵니다.',
     'security': [{"Bearer": []}],  # ✅ API 호출 시 JWT 인증 필요
-    'parameters': [
-        {
-            'name': 'userId',
-            'in': 'query',
-            'required': True,
-            'type': 'integer',
-            'example': 1,
-            'description': '조회할 사용자의 ID'
-        }
-    ],
     'responses': {
         200: {
             'description': '사용자가 저장한 영양제 목록',
@@ -217,14 +176,7 @@ def delete_analysis():
 })
 def get_supplements():
     """사용자가 저장한 영양제 이름 목록을 가져오는 API (GET 방식)"""
-    # ✅ Access Token 검증
-    token_data, error_response = verify_token()
-    if error_response:
-        return error_response  # 토큰이 유효하지 않으면 오류 반환
-
-    # ✅ URL에서 userId 가져오기 (쿼리 파라미터)
-    user_id = request.args.get("userId", type=int)
-
+    user_id = get_jwt_identity()
     if not user_id:
         return jsonify({"error": "userId가 필요합니다."}), 400
 
@@ -243,6 +195,8 @@ def get_supplements():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 
 @app.route('/get_supplement/<int:supplement_id>', methods=['GET'])
 @swag_from({

@@ -1,16 +1,19 @@
 from flask import Flask, request, jsonify
 from flasgger import Swagger
 import openai
-import jwt
 from flasgger import swag_from
 from config import OPENAI_API_KEY, SECRET_KEY
 from dbconnect import get_user_survey
+from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 # OpenAI API 설정
 openai.api_key = OPENAI_API_KEY
 
 # Flask 인스턴스 생성
 app = Flask(__name__)
+
+app.config["JWT_SECRET_KEY"] = SECRET_KEY
+jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -33,60 +36,12 @@ swagger_template = {
 
 swagger = Swagger(app, template=swagger_template)
 
-def verify_token():
-    """Access Token 검증 함수"""
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header:
-        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
-
-    try:
-        # ✅ "Bearer <TOKEN>" 형식으로 전송되므로, "Bearer " 제거
-        token = auth_header.split(" ")[1]
-
-        # ✅ JWT 검증 (토큰 서명 확인)
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token, None  # 검증 성공 시 토큰 정보 반환
-
-    except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."})
-    except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."})
-
-def verify_token():
-    """Access Token 검증 함수"""
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header:
-        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
-
-    try:
-        token = auth_header.split(" ")[1]  # "Bearer <TOKEN>"에서 "Bearer " 제거
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token, None
-    except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."}), 401
-    except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
-
 @app.route("/health-analysis", methods=["POST"])
+@jwt_required()
 @swag_from({
     'tags': ['Health Analysis'],
     'summary': '사용자의 생활 패턴을 분석하고 필요한 영양소를 추천합니다.',
     'security': [{"Bearer": []}],
-    'parameters': [
-        {
-            'name': 'userId',
-            'in': 'body',
-            'required': True,
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'userId': {'type': 'integer', 'example': 1}
-                }
-            }
-        }
-    ],
     'responses': {
         200: {
             'description': '건강 분석 결과 반환',
@@ -106,12 +61,7 @@ def verify_token():
 })
 def health_analysis():
     """사용자의 건강 설문 데이터를 분석하고 필요한 영양소를 추천하는 API"""
-    # ✅ Access Token 검증
-    token_data, error_response = verify_token()
-    if error_response:
-        return error_response  # 인증 실패 시 오류 반환
-
-    user_id = request.json.get("userId")
+    user_id = get_jwt_identity()
     if not user_id:
         return jsonify({"error": "userId가 필요합니다."}), 400
 

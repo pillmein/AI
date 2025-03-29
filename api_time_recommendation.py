@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
 from flasgger import Swagger
 import openai
-import jwt
 import psycopg2
 import re
 from datetime import datetime
 from flasgger import swag_from
 from sentence_transformers import SentenceTransformer
-from config import OPENAI_API_KEY, SECRET_KEY, FINE_TUNED_MODEL_ID
+from config import OPENAI_API_KEY, SECRET_KEY, FINE_TUNED_MODEL_ID, DB_CONFIG
+from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 # OpenAI API 키 설정
 openai.api_key = OPENAI_API_KEY
@@ -17,6 +17,10 @@ embedder = SentenceTransformer(model_name)
 
 # Flask 인스턴스 생성
 app = Flask(__name__)
+
+# JWT 설정
+app.config["JWT_SECRET_KEY"] = SECRET_KEY
+jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -39,27 +43,6 @@ swagger_template = {
 
 swagger = Swagger(app, template=swagger_template)
 
-def verify_token():
-    """Access Token 검증 함수"""
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header:
-        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
-
-    try:
-        # ✅ "Bearer <TOKEN>" 형식으로 전송되므로, "Bearer " 제거
-        token = auth_header.split(" ")[1]
-
-        # ✅ JWT 검증 (토큰 서명 확인)
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token, None  # 검증 성공 시 토큰 정보 반환
-
-    except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."}), 401
-    except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
-
-
 def normalize_ingredient(ingredient):
     """LLM을 사용하여 성분명을 일반적인 영양소명으로 변환"""
     prompt = f"""
@@ -68,6 +51,7 @@ def normalize_ingredient(ingredient):
     예시:
     - 분리대두단백 → 단백질
     - 아세로라 추출물 → 비타민 C
+    - 비타민B1 → 비타민 B
     - 히알루론산 → 히알루론산 (그대로 유지)
 
     성분명: {ingredient}
@@ -89,14 +73,14 @@ def normalize_ingredient(ingredient):
 def extract_time(text):
     """응답에서 구체적인 시간을 추출하여 HH:MM:SS 형식으로 변환"""
     time_mapping = {
-        "새벽": "06:00:00",
-        "아침 공복": "08:00:00",
-        "아침 식후": "09:00:00",
-        "점심 공복": "12:00:00",
-        "점심 식후": "13:30:00",
-        "저녁 공복": "18:00:00",
-        "저녁 식후": "19:30:00",
-        "자기 전": "22:30:00"
+        "새벽": "06:00",
+        "아침 공복": "08:00",
+        "아침 식후": "09:00",
+        "점심 공복": "12:00",
+        "점심 식후": "13:30",
+        "저녁 공복": "18:00",
+        "저녁 식후": "19:30",
+        "자기 전": "22:30"
     }
 
     for key, value in time_mapping.items():
@@ -112,23 +96,22 @@ def extract_time(text):
             hour += 12
         return f"{hour:02}:00:00"
 
-    return "00:00:00"  # 기본값 (추출 실패 시)
+    return "00:00"  # 기본값 (추출 실패 시)
 
 
 @app.route("/supplement-timing", methods=["POST"])
+@jwt_required()
 @swag_from({
     'tags': ['Supplement Timing'],
     'summary': '영양제의 주성분을 기반으로 최적 섭취 시간을 추천합니다.',
     'parameters': [
         {
-            'name': 'api_supplement_id',
+            'name': 'user_supplement_id',
             'in': 'body',
             'required': True,
             'schema': {
                 'type': 'object',
                 'properties': {
-                    'apiSupplementId': {'type': 'integer', 'example': 123},
-                    'userId': {'type': 'integer', 'example': 1},
                     'userSupplementId': {'type': 'integer', 'example': 10}
                 }
             }
@@ -153,28 +136,18 @@ def extract_time(text):
 def supplement_timing():
     """영양제의 주성분을 기반으로 최적 섭취 시간을 추천하는 API"""
     data = request.json
-    api_supplement_id = data.get("apiSupplementId")
-    user_id = data.get("userId")
     user_supplement_id = data.get("userSupplementId")
-
-    if not api_supplement_id:
-        return jsonify({"error": "apiSupplementId가 필요합니다."}), 400
+    user_id = get_jwt_identity()
 
     try:
         # 1. DB에서 영양제 정보 조회
-        conn = psycopg2.connect(
-            host="127.0.0.1",  # 또는 클라우드 DB 주소
-            port="5432",        # PostgreSQL 포트
-            database="test",    # 데이터베이스 이름
-            user="postgres",    # 사용자 이름
-            password="ummong1330"  # 비밀번호
-        )
+        conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
         query = """
-        SELECT name, ingredients FROM api_supplements WHERE id = %s;
+        SELECT supplement_name, ingredients FROM user_supplements WHERE id = %s;
         """
-        cur.execute(query, (api_supplement_id,))
+        cur.execute(query, (user_supplement_id,))
         result = cur.fetchone()
 
         cur.close()
@@ -195,6 +168,21 @@ def supplement_timing():
         연구 결과에 따르면 최적의 섭취 시간대가 언제인지 구체적인 시간과 함께 설명해주세요.
         아래 8가지 시간대 중 하나를 선택하여 답변하세요: 
         "새벽, 아침 공복, 아침 식후, 점심 공복, 점심 식후, 저녁 공복, 저녁 식후, 자기 전"
+        
+        연구 결과가 부족한 경우, 아래 영양성분 별 최적의 복용 시간을 참고하세요:
+        - 비타민 B: 아침 공복
+        - 비타민 C: 아침 식후
+        - 비타민 A: 점심 식후
+        - 비타민 D: 저녁 식후
+        - 비타민 E: 저녁 식후
+        - 비타민 K: 저녁 식후
+        - 마그네슘: 저녁 식후, 자기 전
+        - 칼슘: 저녁 식후
+        - 오메가3: 점심 식후
+        - 루테인: 아침 식후
+        - 철분제: 아침 공복
+        - 유산균: 아침 공복, 자기 전
+        - 홍삼: 아침 공복
         """
 
         response = openai.chat.completions.create(

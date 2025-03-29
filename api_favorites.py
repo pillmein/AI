@@ -1,26 +1,18 @@
 from flask import Flask, request, jsonify
 import psycopg2
-import jwt
 import re
 from flasgger import Swagger, swag_from
 from datetime import datetime
-from config import SECRET_KEY
-
-# ✅ PostgreSQL 연결 설정
-DB_CONFIG = {
-    "host": "127.0.0.1",
-    "dbname": "test",
-    "user": "postgres",
-    "password": "ummong1330",
-    "port": "5432"
-}
-
+from config import SECRET_KEY, DB_CONFIG
+from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
-
 app = Flask(__name__)
+
+app.config["JWT_SECRET_KEY"] = SECRET_KEY
+jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -42,27 +34,10 @@ swagger_template = {
 }
 swagger = Swagger(app, template=swagger_template)
 
-def verify_token():
-    """Access Token 검증 함수"""
-    auth_header = request.headers.get("Authorization")
 
-    if not auth_header:
-        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
-
-    try:
-        # ✅ "Bearer <TOKEN>" 형식이므로 "Bearer " 제거
-        token = auth_header.split(" ")[1]
-
-        # ✅ JWT 검증 (서명 확인)
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token, None  # 검증 성공 시 토큰 정보 반환
-
-    except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."}), 401
-    except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."}), 401
 
 @app.route('/save_favorite', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['Favorites'],
     'summary': '찜한 영양제 추가',
@@ -70,7 +45,6 @@ def verify_token():
         {'name': 'body', 'in': 'body', 'required': True, 'schema': {
             'type': 'object',
             'properties': {
-                'userId': {'type': 'integer'},
                 'apiSupplementId': {'type': 'integer'},
                 'imgUrl': {'type': 'string'}
             }
@@ -88,7 +62,7 @@ def save_favorite():
     if not data:
         return jsonify({"error": "잘못된 요청입니다."}), 400
 
-    user_id = data.get("userId")
+    user_id = get_jwt_identity()
     api_supplement_id = data.get("apiSupplementId")
     img_url = data.get("imgUrl")
     created_at = updated_at = datetime.utcnow()
@@ -116,7 +90,9 @@ def save_favorite():
         return jsonify({"error": str(e)}), 500
 
 
+
 @app.route('/delete_favorite', methods=['DELETE'])
+@jwt_required()
 @swag_from({
     'tags': ['Favorites'],
     'summary': '즐겨찾기 삭제',
@@ -124,7 +100,6 @@ def save_favorite():
         {'name': 'body', 'in': 'body', 'required': True, 'schema': {
             'type': 'object',
             'properties': {
-                'userId': {'type': 'integer'},
                 'apiSupplementId': {'type': 'integer'}
             }
         }}
@@ -141,7 +116,7 @@ def delete_favorite():
     if not data:
         return jsonify({"error": "잘못된 요청입니다."}), 400
 
-    user_id = data.get("userId")
+    user_id = get_jwt_identity()
     api_supplement_id = data.get("apiSupplementId")
 
     if not user_id or not api_supplement_id:
@@ -164,13 +139,12 @@ def delete_favorite():
         return jsonify({"error": str(e)}), 500
 
 
+
 @app.route('/get_favorites', methods=['GET'])
+@jwt_required()
 @swag_from({
     'tags': ['Favorites'],
     'summary': '즐겨찾기 목록 조회',
-    'parameters': [
-        {'name': 'userId', 'in': 'query', 'type': 'integer', 'required': True, 'description': '사용자 ID'}
-    ],
     'responses': {
         200: {'description': '즐겨찾기 목록 반환'},
         400: {'description': '잘못된 요청입니다.'},
@@ -179,7 +153,7 @@ def delete_favorite():
     }
 })
 def get_favorites():
-    user_id = request.args.get("userId")
+    user_id = get_jwt_identity()
     if not user_id:
         return jsonify({"error": "userId가 필요합니다."}), 400
 
@@ -209,7 +183,10 @@ def get_favorites():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route('/get_favorite/<int:api_supplement_id>', methods=['GET'])
+@jwt_required()
 @swag_from({
     'tags': ['Favorites'],
     'summary': '특정 영양제의 즐겨찾기 정보 조회',

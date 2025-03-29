@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
 from flasgger import Swagger
 import openai
-import jwt
 from flasgger import swag_from
 from sentence_transformers import SentenceTransformer
 from config import OPENAI_API_KEY, SECRET_KEY
 from dbconnect import get_user_survey
 from gpt_sup_recommendation import rag_qa_system, load_data, generate_health_summary
 from naver_shopping_service import NaverShoppingService
+from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 # OpenAI API 키 설정
 openai.api_key = OPENAI_API_KEY
@@ -24,6 +24,9 @@ if df_items is None or index is None:
 
 # Flask 인스턴스 생성
 app = Flask(__name__)
+
+app.config["JWT_SECRET_KEY"] = SECRET_KEY
+jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -47,45 +50,13 @@ swagger_template = {
 swagger = Swagger(app, template=swagger_template)
 
 
-def verify_token():
-    """Access Token 검증 함수"""
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header:
-        return None, jsonify({"error": "Authorization 헤더가 필요합니다."}), 401
-
-    try:
-        # ✅ "Bearer <TOKEN>" 형식으로 전송되므로, "Bearer " 제거
-        token = auth_header.split(" ")[1]
-
-        # ✅ JWT 검증 (토큰 서명 확인)
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token, None  # 검증 성공 시 토큰 정보 반환
-
-    except jwt.ExpiredSignatureError:
-        return None, jsonify({"error": "토큰이 만료되었습니다."})
-    except jwt.InvalidTokenError:
-        return None, jsonify({"error": "유효하지 않은 토큰입니다."})
-
 
 @app.route("/recommend", methods=["POST"])
+@jwt_required()
 @swag_from({
     'tags': ['Supplement Recommendation'],
     'summary': '유저 건강 데이터를 기반으로 3가지 영양제를 추천합니다.',
     'security': [{"Bearer": []}],  # ✅ API 호출 시 Access Token 필수
-    'parameters': [
-        {
-            'name': 'userId',
-            'in': 'body',
-            'required': True,
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'userId': {'type': 'integer', 'example': 1}
-                }
-            }
-        }
-    ],
     'responses': {
         200: {
             'description': '추천된 영양제 리스트',
@@ -106,12 +77,7 @@ def verify_token():
 })
 def recommend_supplements():
     """사용자 건강 데이터를 기반으로 3가지 영양제 추천"""
-    # ✅ Access Token 검증
-    token_data, error_response = verify_token()
-    if error_response:
-        return error_response  # 토큰이 유효하지 않으면 오류 반환
-
-    user_id = request.json.get("userId")
+    user_id = get_jwt_identity()
     if not user_id:
         return jsonify({"error": "userId가 필요합니다."}), 400
 
