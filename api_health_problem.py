@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Blueprint
 from flasgger import Swagger
 import openai
 from flasgger import swag_from
@@ -11,6 +11,8 @@ openai.api_key = OPENAI_API_KEY
 
 # Flask 인스턴스 생성
 app = Flask(__name__)
+blueprint = Blueprint('health_problem_api', __name__)
+app.register_blueprint(blueprint, url_prefix='/health')
 
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
 jwt = JWTManager(app)
@@ -36,7 +38,7 @@ swagger_template = {
 
 swagger = Swagger(app, template=swagger_template)
 
-@app.route("/health-analysis", methods=["POST"])
+@blueprint.route("/health-analysis", methods=["POST"])
 @jwt_required()
 @swag_from({
     'tags': ['Health Analysis'],
@@ -116,7 +118,3 @@ def health_analysis():
         "userId": user_id,
         "analysisSummary": llm_response
     })
-
-if __name__ == "__main__":
-    print("✅ Flask 서버 시작 중...")
-    app.run(debug=True)

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Blueprint
 from ocr import extractTextWithGoogleVision
 from ocr_gpt_summary import summarizeSupplementInfo
 from flasgger import Swagger, swag_from
@@ -6,6 +6,8 @@ from config import SECRET_KEY
 from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 app = Flask(__name__)
+blueprint = Blueprint('ocr_analyze_api', __name__)
+app.register_blueprint(blueprint, url_prefix='/ocr')
 
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
 jwt = JWTManager(app)
@@ -33,7 +35,7 @@ swagger = Swagger(app, template=swagger_template)
 
 
 
-@app.route('/analyze', methods=['POST'])
+@blueprint.route('/analyze', methods=['POST'])
 @jwt_required()
 @swag_from({
     'tags': ['OCR & Supplement Analysis'],
@@ -86,7 +88,3 @@ def uploadImages():
     summary = summarizeSupplementInfo(scannedTextList)
 
     return jsonify(summary)
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)

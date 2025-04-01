@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Blueprint
 import psycopg2
 from flasgger import Swagger, swag_from
 from datetime import datetime
@@ -9,6 +9,8 @@ def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
 app = Flask(__name__)
+blueprint = Blueprint('analysis_api', __name__)
+app.register_blueprint(blueprint, url_prefix='/analysis')
 
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
 jwt = JWTManager(app)
@@ -35,7 +37,7 @@ swagger = Swagger(app, template=swagger_template)
 
 
 
-@app.route('/save_analysis', methods=['POST'])
+@blueprint.route('/save_analysis', methods=['POST'])
 @jwt_required()
 @swag_from({
     'tags': ['Supplement Analysis'],
@@ -98,7 +100,7 @@ def save_analysis():
 
 
 
-@app.route('/delete_analysis', methods=['DELETE'])
+@blueprint.route('/delete_analysis', methods=['DELETE'])
 @jwt_required()
 @swag_from({
     'tags': ['Supplement Analysis'],
@@ -153,7 +155,7 @@ def delete_analysis():
 
 
 
-@app.route('/get_supplements', methods=['GET'])
+@blueprint.route('/get_supplements', methods=['GET'])
 @jwt_required()
 @swag_from({
     'tags': ['Supplement Analysis'],
@@ -198,7 +200,7 @@ def get_supplements():
 
 
 
-@app.route('/get_supplement/<int:supplement_id>', methods=['GET'])
+@blueprint.route('/get_supplement/<int:supplement_id>', methods=['GET'])
 @swag_from({
     'tags': ['Supplement Analysis'],
     'summary': '특정 ID의 영양제 정보를 조회합니다.',
@@ -269,8 +271,3 @@ def get_supplement(supplement_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-if __name__ == '__main__':
-    print("✅ Flask 서버 시작 중...")
-    app.run(host='0.0.0.0', port=5000, debug=True)

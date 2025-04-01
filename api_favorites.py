@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Blueprint
 import psycopg2
 import re
 from flasgger import Swagger, swag_from
@@ -10,6 +10,8 @@ def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
 app = Flask(__name__)
+blueprint = Blueprint('favorites_api', __name__)
+app.register_blueprint(blueprint, url_prefix='/favorites')
 
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
 jwt = JWTManager(app)
@@ -36,7 +38,7 @@ swagger = Swagger(app, template=swagger_template)
 
 
 
-@app.route('/save_favorite', methods=['POST'])
+@blueprint.route('/save_favorite', methods=['POST'])
 @jwt_required()
 @swag_from({
     'tags': ['Favorites'],
@@ -91,7 +93,7 @@ def save_favorite():
 
 
 
-@app.route('/delete_favorite', methods=['DELETE'])
+@blueprint.route('/delete_favorite', methods=['DELETE'])
 @jwt_required()
 @swag_from({
     'tags': ['Favorites'],
@@ -140,7 +142,7 @@ def delete_favorite():
 
 
 
-@app.route('/get_favorites', methods=['GET'])
+@blueprint.route('/get_favorites', methods=['GET'])
 @jwt_required()
 @swag_from({
     'tags': ['Favorites'],
@@ -185,7 +187,7 @@ def get_favorites():
 
 
 
-@app.route('/get_favorite/<int:api_supplement_id>', methods=['GET'])
+@blueprint.route('/get_favorite/<int:api_supplement_id>', methods=['GET'])
 @jwt_required()
 @swag_from({
     'tags': ['Favorites'],
@@ -273,9 +275,3 @@ def get_favorite(api_supplement_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-
-if __name__ == '__main__':
-    print("✅ Flask 서버 시작 중...")
-    app.run(host='0.0.0.0', port=5000, debug=True)

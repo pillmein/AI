@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Blueprint
 from flasgger import Swagger
 import openai
 import psycopg2
@@ -17,6 +17,8 @@ embedder = SentenceTransformer(model_name)
 
 # Flask 인스턴스 생성
 app = Flask(__name__)
+blueprint = Blueprint('time_recommendation_api', __name__)
+app.register_blueprint(blueprint, url_prefix='/timing')
 
 # JWT 설정
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
@@ -69,7 +71,6 @@ def normalize_ingredient(ingredient):
 
     return response.choices[0].message.content.strip()
 
-
 def extract_time(text):
     """응답에서 구체적인 시간을 추출하여 HH:MM:SS 형식으로 변환"""
     time_mapping = {
@@ -99,7 +100,8 @@ def extract_time(text):
     return "00:00"  # 기본값 (추출 실패 시)
 
 
-@app.route("/supplement-timing", methods=["POST"])
+
+@blueprint.route("/supplement-timing", methods=["POST"])
 @jwt_required()
 @swag_from({
     'tags': ['Supplement Timing'],
@@ -229,8 +231,3 @@ def supplement_timing():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    print("✅ Flask 서버 시작 중...")
-    app.run(debug=True)

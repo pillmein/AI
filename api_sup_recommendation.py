@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Blueprint
 from flasgger import Swagger
 import openai
 from flasgger import swag_from
@@ -24,6 +24,8 @@ if df_items is None or index is None:
 
 # Flask 인스턴스 생성
 app = Flask(__name__)
+blueprint = Blueprint('sup_recommendation_api', __name__)
+app.register_blueprint(blueprint, url_prefix='/supplement')
 
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
 jwt = JWTManager(app)
@@ -51,7 +53,7 @@ swagger = Swagger(app, template=swagger_template)
 
 
 
-@app.route("/recommend", methods=["POST"])
+@blueprint.route("/recommend", methods=["POST"])
 @jwt_required()
 @swag_from({
     'tags': ['Supplement Recommendation'],
@@ -129,8 +131,3 @@ def recommend_supplements():
         "recSupplement2": recs[1],
         "recSupplement3": recs[2]
     })
-
-
-if __name__ == "__main__":
-    print("✅ Flask 서버 시작 중...")
-    app.run(debug=True)
