@@ -17,12 +17,3 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
 }
-"""
-DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": "5432",
-    "database": "test",
-    "user": "postgres",
-    "password": "ummong1330"
-}
-"""
