@@ -9,6 +9,7 @@ FINE_TUNED_MODEL_ID = os.getenv("FINE_TUNED_MODEL_ID")
 SECRET_KEY = os.getenv("SECRET_KEY")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
+
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": os.getenv("DB_PORT"),
@@ -16,3 +17,12 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
 }
+"""
+DB_CONFIG = {
+    "host": "127.0.0.1",
+    "port": "5432",
+    "database": "test",
+    "user": "postgres",
+    "password": "ummong1330"
+}
+"""

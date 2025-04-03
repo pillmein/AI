@@ -46,6 +46,7 @@ swagger_template = {
             }
         }}
     ],
+    "security": [{"Bearer": []}],
     'responses': {
         201: {'description': '찜한 영양제 추가 성공'},
         400: {'description': '잘못된 요청입니다.'},
@@ -100,6 +101,7 @@ def save_favorite():
             }
         }}
     ],
+    "security": [{"Bearer": []}],
     'responses': {
         200: {'description': '찜한 영양제 삭제 성공'},
         400: {'description': '잘못된 요청입니다.'},
@@ -141,6 +143,7 @@ def delete_favorite():
 @swag_from({
     'tags': ['Favorites'],
     'summary': '즐겨찾기 목록 조회',
+    "security": [{"Bearer": []}],
     'responses': {
         200: {'description': '즐겨찾기 목록 반환'},
         400: {'description': '잘못된 요청입니다.'},
@@ -195,6 +198,7 @@ def get_favorites():
             'description': '조회할 영양제의 ID'
         }
     ],
+    "security": [{"Bearer": []}],
     'responses': {
         200: {
             'description': '영양제 정보 반환',

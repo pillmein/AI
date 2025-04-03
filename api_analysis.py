@@ -207,6 +207,7 @@ def get_supplements():
             'description': '조회할 영양제의 ID'
         }
     ],
+    "security": [{"Bearer": []}],
     'responses': {
         200: {
             'description': '영양제 정보 조회 성공',

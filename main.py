@@ -13,6 +13,23 @@ from api_time_recommendation import blueprint as time_bp
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = SECRET_KEY
+
+app.config['SWAGGER'] = {
+    'title': 'My API',
+    'uiversion': 3,
+    'securityDefinitions': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': "Enter JWT token as: **Bearer YOUR_TOKEN_HERE**"
+        }
+    },
+    'security': [
+        {'Bearer': []}
+    ]
+}
+
 Swagger(app)
 JWTManager(app)
 

@@ -22,8 +22,8 @@ blueprint = Blueprint('time_recommendation_api', __name__)
 swagger_template = {
     "swagger": "2.0",
     "info": {
-        "title": "OCR & Supplement Analysis API",
-        "description": "Google Vision을 사용한 OCR 및 GPT를 활용한 영양제 분석 API",
+        "title": "Time Recommendation API",
+        "description": "영양제 복용 시간 추천 API",
         "version": "1.0.0"
     },
     "securityDefinitions": {
@@ -107,12 +107,12 @@ def extract_time(text):
             'schema': {
                 'type': 'object',
                 'properties': {
-                    'supplementId': {'type': 'integer', 'example': 10},
-                    'ingredients': {'type': 'string', 'example': "비타민C, 칼슘"}
+                    'supplementId': {'type': 'integer', 'example': 5}
                 }
             }
         }
     ],
+    "security": [{"Bearer": []}],
     'responses': {
         200: {
             'description': '최적 섭취 시간 반환',
@@ -133,21 +133,36 @@ def supplement_timing():
     """영양제의 주성분을 기반으로 최적 섭취 시간을 추천하는 API"""
     data = request.json
     supplement_id = data.get("supplementId")
-    ingredients = data.get("ingredients", "")
 
-    if not supplement_id or not ingredients:
-        return jsonify({"error": "supplementId 또는 ingredients 값이 필요합니다."}), 400
+    if not supplement_id:
+        return jsonify({"error": "supplementId 값이 필요합니다."}), 400
     user_id = get_jwt_identity()
 
     try:
+        # 1. DB에서 supplementId와 user_id가 일치하는 데이터의 성분 정보 조회
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        query = """
+                SELECT ingredients FROM user_supplements 
+                WHERE id = %s AND user_id = %s
+                """
+        cur.execute(query, (supplement_id, user_id))
+        result = cur.fetchone()
+
+        if not result:
+            return jsonify({"error": "해당 영양제를 찾을 수 없습니다."}), 404
+
+        ingredients = result[0]  # DB에서 가져온 성분 문자열
+
         # 2. 주성분(ingredients에서 첫 번째 성분) 추출 후 일반화
         ingredient_list = ingredients.split(",")
         main_ingredient = ingredient_list[0].strip() if ingredient_list else "알 수 없음"
-        generalized_ingredient = normalize_ingredient(main_ingredient)
+        #generalized_ingredient = normalize_ingredient(main_ingredient)
 
         # 3. LLM에게 최적의 섭취 시간 질문
         prompt = f"""
-        {generalized_ingredient}을 언제 복용하는 것이 가장 좋은가요? 
+        {main_ingredient}을 언제 복용하는 것이 가장 좋은가요? 
         연구 결과에 따르면 최적의 섭취 시간대가 언제인지 구체적인 시간과 함께 설명해주세요.
         아래 8가지 시간대 중 하나를 선택하여 답변하세요: 
         "새벽, 아침 공복, 아침 식후, 점심 공복, 점심 식후, 저녁 공복, 저녁 식후, 자기 전"
@@ -166,6 +181,8 @@ def supplement_timing():
         - 철분제: 아침 공복
         - 유산균: 아침 공복, 자기 전
         - 홍삼: 아침 공복
+        - 단백질: 아침 식후
+        - 레시틴: 아침 식후
         """
 
         response = openai.chat.completions.create(
@@ -184,14 +201,12 @@ def supplement_timing():
         optimal_timing = match.group(1) if match else "알 수 없음"  # 🔹 시간대가 없으면 "알 수 없음"
 
         # 5. 기존 `advice` 형식 유지
-        advice = f"{generalized_ingredient}은(는) {optimal_timing}에 복용하는 것이 가장 좋아요!"
+        advice = f"{main_ingredient}은(는) {optimal_timing}에 복용하는 것이 가장 좋아요!"
 
         # 6. 섭취 시간 데이터 변환
         optimal_time_formatted = extract_time(optimal_timing)
 
         # 7. DB에 데이터 저장
-        conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
         insert_query = """
         INSERT INTO recommended_intake_time (created_at, updated_at, advice, recommended_time, user_id, user_supplement_id)
         VALUES (%s, %s, %s, %s, %s, %s)
