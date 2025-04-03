@@ -107,7 +107,8 @@ def extract_time(text):
             'schema': {
                 'type': 'object',
                 'properties': {
-                    'userSupplementId': {'type': 'integer', 'example': 10}
+                    'supplementId': {'type': 'integer', 'example': 10},
+                    'ingredients': {'type': 'string', 'example': "비타민C, 칼슘"}
                 }
             }
         }
@@ -131,27 +132,14 @@ def extract_time(text):
 def supplement_timing():
     """영양제의 주성분을 기반으로 최적 섭취 시간을 추천하는 API"""
     data = request.json
-    user_supplement_id = data.get("userSupplementId")
+    supplement_id = data.get("supplementId")
+    ingredients = data.get("ingredients", "")
+
+    if not supplement_id or not ingredients:
+        return jsonify({"error": "supplementId 또는 ingredients 값이 필요합니다."}), 400
     user_id = get_jwt_identity()
 
     try:
-        # 1. DB에서 영양제 정보 조회
-        conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
-
-        query = """
-        SELECT supplement_name, ingredients FROM user_supplements WHERE id = %s;
-        """
-        cur.execute(query, (user_supplement_id,))
-        result = cur.fetchone()
-
-        cur.close()
-
-        if not result:
-            return jsonify({"error": "해당 ID의 영양제를 찾을 수 없습니다."}), 404
-
-        supplement_name, ingredients = result
-
         # 2. 주성분(ingredients에서 첫 번째 성분) 추출 후 일반화
         ingredient_list = ingredients.split(",")
         main_ingredient = ingredient_list[0].strip() if ingredient_list else "알 수 없음"
@@ -183,7 +171,7 @@ def supplement_timing():
         response = openai.chat.completions.create(
             model=FINE_TUNED_MODEL_ID,
             messages=[
-                {"role": "system", "content": "당신은 영양제 복용 전문가입니다."},
+                {"role": "system", "content": "당신은 영양성분에 따라 영양제 복용 시간을 추천하는 전문가입니다."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=100
@@ -202,6 +190,7 @@ def supplement_timing():
         optimal_time_formatted = extract_time(optimal_timing)
 
         # 7. DB에 데이터 저장
+        conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
         insert_query = """
         INSERT INTO recommended_intake_time (created_at, updated_at, advice, recommended_time, user_id, user_supplement_id)
@@ -212,7 +201,7 @@ def supplement_timing():
 
         cur.execute(insert_query,
                     (created_at, updated_at, advice, optimal_time_formatted, user_id,
-                     user_supplement_id))
+                     supplement_id))
         conn.commit()
         cur.close()
         conn.close()
