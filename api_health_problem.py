@@ -10,12 +10,7 @@ from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 openai.api_key = OPENAI_API_KEY
 
 # Flask 인스턴스 생성
-app = Flask(__name__)
 blueprint = Blueprint('health_problem_api', __name__)
-app.register_blueprint(blueprint, url_prefix='/health')
-
-app.config["JWT_SECRET_KEY"] = SECRET_KEY
-jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -36,7 +31,6 @@ swagger_template = {
     "security": [{"Bearer": []}]
 }
 
-swagger = Swagger(app, template=swagger_template)
 
 @blueprint.route("/health-analysis", methods=["POST"])
 @jwt_required()
@@ -80,13 +74,13 @@ def health_analysis():
 
     prompt = f"""
     당신은 건강 전문가 AI입니다. 사용자의 설문 데이터를 기반으로 생활 패턴과 건강 상태를 분석하고, 적절한 영양소와 복용 시간을 추천하세요.
-    
+
     사용자 설문 데이터:
     {context}
 
     🎯 예시:
     "햇빛을 많이 쬐지 못하는 생활패턴이네요! 비타민 D를 점심 식사와 함께 복용하는 것을 추천해요. 수면 부족을 겪고 있으므로, 마그네슘을 저녁에 섭취하면 신경 안정과 수면 개선에 도움이 될 수 있어요."
-    
+
     심각도 기준:
     - 만성 질환 관련 문제는 높은 우선순위
     - 식습관이 매우 불균형할 경우 높은 우선순위
@@ -94,7 +88,7 @@ def health_analysis():
 
     사용자가 '매우 자주 있음'이라고 응답한 문제가 가장 심각한 문제인 것으로 판단하고, 건강 데이터를 기반으로 우선순위를 결정하세요.
     이제 사용자의 건강 상태를 답변 형식에 맞게 1~3순위로 정리하고, 그 근거를 함께 제시하세요.
-    
+
     🔹 지침:
     - **불필요한 서론 없이 바로 조언 시작**
     - **간결하고 자연스러운 문장 사용 (최대 4~5문장)**

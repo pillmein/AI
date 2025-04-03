@@ -1,16 +1,10 @@
 import psycopg2
 import pandas as pd
-import json
+from config import DB_CONFIG
 
 def get_user_survey(user_id):
     # PostgreSQL 연결 정보
-    db_params = {
-        "host": "127.0.0.1",
-        "dbname": "test",
-        "user": "postgres",
-        "password": "ummong1330",
-        "port": "5432"
-    }
+    db_params = {**DB_CONFIG}
 
     # 컬럼과 question, concern, required_nutrients 매핑
     column_mapping = {
@@ -262,13 +256,7 @@ def get_user_survey(user_id):
 
     try:
         # 데이터베이스 연결
-        conn = psycopg2.connect(
-            host="127.0.0.1",
-            port="5432",
-            database="test",
-            user="postgres",
-            password="ummong1330"
-        )
+        conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
         # 특정 user_id의 데이터만 조회

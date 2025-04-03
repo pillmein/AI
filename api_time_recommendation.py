@@ -16,13 +16,7 @@ model_name = 'sentence-transformers/all-MiniLM-L6-v2'
 embedder = SentenceTransformer(model_name)
 
 # Flask 인스턴스 생성
-app = Flask(__name__)
 blueprint = Blueprint('time_recommendation_api', __name__)
-app.register_blueprint(blueprint, url_prefix='/timing')
-
-# JWT 설정
-app.config["JWT_SECRET_KEY"] = SECRET_KEY
-jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -43,7 +37,6 @@ swagger_template = {
     "security": [{"Bearer": []}]
 }
 
-swagger = Swagger(app, template=swagger_template)
 
 def normalize_ingredient(ingredient):
     """LLM을 사용하여 성분명을 일반적인 영양소명으로 변환"""
@@ -70,6 +63,7 @@ def normalize_ingredient(ingredient):
     )
 
     return response.choices[0].message.content.strip()
+
 
 def extract_time(text):
     """응답에서 구체적인 시간을 추출하여 HH:MM:SS 형식으로 변환"""
@@ -98,7 +92,6 @@ def extract_time(text):
         return f"{hour:02}:00:00"
 
     return "00:00"  # 기본값 (추출 실패 시)
-
 
 
 @blueprint.route("/supplement-timing", methods=["POST"])
@@ -170,7 +163,7 @@ def supplement_timing():
         연구 결과에 따르면 최적의 섭취 시간대가 언제인지 구체적인 시간과 함께 설명해주세요.
         아래 8가지 시간대 중 하나를 선택하여 답변하세요: 
         "새벽, 아침 공복, 아침 식후, 점심 공복, 점심 식후, 저녁 공복, 저녁 식후, 자기 전"
-        
+
         연구 결과가 부족한 경우, 아래 영양성분 별 최적의 복용 시간을 참고하세요:
         - 비타민 B: 아침 공복
         - 비타민 C: 아침 식후

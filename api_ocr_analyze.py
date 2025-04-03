@@ -5,12 +5,8 @@ from flasgger import Swagger, swag_from
 from config import SECRET_KEY
 from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
-app = Flask(__name__)
-blueprint = Blueprint('ocr_analyze_api', __name__)
-app.register_blueprint(blueprint, url_prefix='/ocr')
 
-app.config["JWT_SECRET_KEY"] = SECRET_KEY
-jwt = JWTManager(app)
+blueprint = Blueprint('ocr_analyze_api', __name__)
 
 # ✅ Swagger 설정 (Authorization 헤더 추가)
 swagger_template = {
@@ -30,8 +26,6 @@ swagger_template = {
     },
     "security": [{"Bearer": []}]
 }
-
-swagger = Swagger(app, template=swagger_template)
 
 
 

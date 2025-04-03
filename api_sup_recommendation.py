@@ -23,12 +23,7 @@ if df_items is None or index is None:
     raise RuntimeError("❌ 데이터 로드 실패! load_data() 결과를 확인하세요.")
 
 # Flask 인스턴스 생성
-app = Flask(__name__)
 blueprint = Blueprint('sup_recommendation_api', __name__)
-app.register_blueprint(blueprint, url_prefix='/supplement')
-
-app.config["JWT_SECRET_KEY"] = SECRET_KEY
-jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -48,8 +43,6 @@ swagger_template = {
     },
     "security": [{"Bearer": []}]
 }
-
-swagger = Swagger(app, template=swagger_template)
 
 
 

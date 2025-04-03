@@ -8,12 +8,8 @@ from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
-app = Flask(__name__)
 blueprint = Blueprint('analysis_api', __name__)
-app.register_blueprint(blueprint, url_prefix='/analysis')
 
-app.config["JWT_SECRET_KEY"] = SECRET_KEY
-jwt = JWTManager(app)
 
 # ✅ Swagger에서 Access Token 입력 필드 추가
 swagger_template = {
@@ -33,8 +29,6 @@ swagger_template = {
     },
     "security": [{"Bearer": []}]
 }
-swagger = Swagger(app, template=swagger_template)
-
 
 
 @blueprint.route('/save_analysis', methods=['POST'])

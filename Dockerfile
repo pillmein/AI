@@ -7,6 +7,9 @@ WORKDIR /app
 # 필요한 파일 복사
 COPY . /app
 
+ENV TMPDIR=/app/tmp
+RUN mkdir -p /app/tmp
+
 # 패키지 설치
 RUN pip install -r requirements.txt
 
