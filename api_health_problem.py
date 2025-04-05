@@ -100,10 +100,10 @@ def health_analysis():
     response = openai.chat.completions.create(
         model="gpt-4",  # LLM 모델 사용
         messages=[
-            {"role": "system", "content": "당신은 건강 전문가입니다."},
+            {"role": "system", "content": "당신은 건강 문제 분석 및 영양소 추천 전문가입니다."},
             {"role": "user", "content": prompt}
         ],
-        max_tokens=400
+        max_tokens=500
     )
 
     llm_response = response.choices[0].message.content.strip()

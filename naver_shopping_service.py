@@ -14,7 +14,8 @@ class NaverShoppingService:
             "Content-Type": "application/json"
         }
 
-        params = {"query": supplement_name}
+        query = f"{supplement_name} 영양제"
+        params = {"query": query, "display": 5}
         response = requests.get(self.BASE_URL, headers=headers, params=params)
 
         if response.status_code != 200:
@@ -27,4 +28,11 @@ class NaverShoppingService:
         if not items:
             return None  # 검색 결과 없음
 
-        return items[0].get("image", None)  # 첫 번째 아이템의 이미지 URL 반환
+        # 🔍 키워드 정확도 필터링: 제목에 추천 제품명이 포함된 것 우선
+        for item in items:
+            title = item.get("title", "").replace("<b>", "").replace("</b>", "").lower()
+            if supplement_name.lower() in title:
+                return item.get("image")
+
+        # 그렇지 않으면 첫 번째 이미지 fallback
+        return items[0].get("image")
