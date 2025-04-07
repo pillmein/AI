@@ -49,7 +49,7 @@ def normalize_ingredient(ingredient):
     - 아세로라 추출물 → 비타민 C
     - 비타민B1 → 비타민 B
     - 히알루론산 → 히알루론산 (그대로 유지)
-    
+
     아래 기준을 지켜주세요:
     - 이미 일반적인 영양소 이름이면 그대로 반환
     - 관련 영양소명이 명확하지 않으면 그대로 반환
@@ -146,53 +146,53 @@ def supplement_timing():
     user_id = get_jwt_identity()
 
     try:
-        # 1. DB에서 supplementId와 user_id가 일치하는 데이터의 성분 정보 조회
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
 
+        # 1. user_supplements에서 성분 + 이름 조회
         query = """
-                SELECT ingredients, api_supplement_id
-                FROM user_supplements 
-                WHERE id = %s AND user_id = %s
-                """
+            SELECT ingredients, supplement_name
+            FROM user_supplements
+            WHERE id = %s AND user_id = %s
+        """
         cur.execute(query, (supplement_id, user_id))
         result = cur.fetchone()
 
         if not result:
             return jsonify({"error": "해당 영양제를 찾을 수 없습니다."}), 404
 
-        ingredients, api_supplement_id = result  # DB에서 가져온 성분 문자열
+        ingredients, supplement_name = result
 
-        # 2. 주성분(ingredients에서 첫 번째 성분) 추출 후 일반화
-        ingredient_list = ingredients.split(",")
-        main_ingredient = ingredient_list[0].strip() if ingredient_list else "알 수 없음"
-        #generalized_ingredient = normalize_ingredient(main_ingredient)
-
-        # 3. api_supplements에서 효과 정보 조회
+        # ✅ 2. 정확하게 매칭하기 위해 name + ingredients 동시 조건 사용
         effects_query = """
-                    SELECT effects 
-                    FROM api_supplements 
-                    WHERE id = %s
-                """
-        cur.execute(effects_query, (api_supplement_id,))
+            SELECT effects
+            FROM api_supplements
+            WHERE name = %s AND ingredients = %s
+            LIMIT 1
+        """
+        cur.execute(effects_query, (supplement_name, ingredients))
         effect_result = cur.fetchone()
         effects = effect_result[0] if effect_result else ""
+
+        # ✅ 3. 주성분 추출
+        ingredient_list = ingredients.split(",")
+        main_ingredient = ingredient_list[0].strip() if ingredient_list else "알 수 없음"
 
         # 3. LLM에게 최적의 섭취 시간 질문
         prompt = f"""
         영양제의 주성분은 '{main_ingredient}'이고, 주요 효능은 다음과 같습니다:
         {effects}
-        
+
         연구 결과에 따르면 이 영양제를 언제 복용하는 것이 가장 좋은지 구체적인 시간과 함께 설명해주세요.
-        
+
         🛑 출력은 아래 두 가지 요소를 **반드시 모두 포함**하여 사람이 이해할 수 있는 자연어 문장(250자 이내)으로 자세히 설명해야 합니다:
         1. 복용 권장 시간대 (다음 중 하나 반드시 포함: 새벽, 아침 공복, 아침 식후, 점심 공복, 점심 식후, 저녁 공복, 저녁 식후, 자기 전)
         2. 해당 시간대를 추천하는 구체적인 이유 (효능과 관련된 설명이 반드시 포함되어야 함)
-        
+
         예시 답변 형식:
         "비타민 C는 아침 식후에 복용하는 것이 가장 효과적입니다. 비타민C는 산성이 강해 공복에 섭취하면 속쓰림을 유발할 수 있으므로, 식사 후에 복용하는 것이 가장 좋습니다. 또한 비타민C는 신진대사를 활발하게 하므로 늦은 시간에 복용하면 숙면을 방해할 수 있어 오전에 섭취하는 것을 권장합니다."
-        
-        또한, 하루 중 아무 때나 복용 가능한 성분이라도 그 효능에 맞게 복용 시간대를 제안해주세요. 
+
+        또한, 하루 중 아무 때나 복용 가능한 성분이라도 그 효능에 맞게 복용 시간대를 제안해주세요.
         예를 들어 피로 회복 효과가 있다면 "아침에 복용하면 하루 피로를 줄이는 데 도움이 됩니다", 혹은 "저녁에 복용하면 피로 회복에 도움이 됩니다" 등으로 구체적인 이유를 포함해서 설명해주세요.
 
         연구 결과가 부족한 경우, 아래 영양성분 별 최적의 복용 시간에 대한 일반 가이드를 참고하세요:
@@ -216,7 +216,7 @@ def supplement_timing():
         response = openai.chat.completions.create(
             model=FINE_TUNED_MODEL_ID,
             messages=[
-                {"role": "system", "content": "당신은 영양성분에 따라 영양제 복용 시간을 추천하는 전문가입니다. 사용자의 질문에 대해 255자 이내로, 정확하고 공손한 말투(입니다체)로 답변해 주세요. 모든 출력은 맞춤법, 띄어쓰기, 문장 구조를 정확하게 지켜야 하며, 문법적으로 올바른 자연스러운 문장으로 작성되어야 합니다."},
+                {"role": "system", "content": "당신은 영양성분에 따라 영양제 복용 시간을 추천하는 전문가입니다. 사용자의 질문에 대해 255자 이내로, 정확하고 공손한 말투(입니다체)로 답변해 주세요. 모든 출력은 맞춤법, 띄어쓰기, 문장 구조를 정확하게 지켜야 하며, 자연스러운 한국어 문장으로 작성되어야 합니다."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=400

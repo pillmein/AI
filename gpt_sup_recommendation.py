@@ -88,7 +88,7 @@ def load_data():
 
     else:
         print("❌ 데이터프레임이 None이므로 실행을 중단합니다.")
-        return None, None, None
+        return None, None
 
 
 def search(query, df_items, embedder, index, k=3):
@@ -174,7 +174,12 @@ def rag_qa_system(question, df_items, index, user_id):
 
     # 4) LLM에 질의와 컨텍스트 전달하여 답변 생성
     prompt = f"""
-    당신은 건강 보조제 추천 전문가입니다. 사용자의 질문에 대해 아래 제공된 참고 정보에서 가장 관련이 있는 제품명을 찾아 추천해주세요.
+    당신은 건강 보조제 추천 전문가입니다. 사용자의 질문에 대해 반드시 아래 제공된 참고 정보의 '제품명' 중에서 가장 관련이 있는 제품명을 3가지 찾아 추천해주세요.
+    
+    📌 규칙 (아주 중요):
+    - 반드시 아래 '참고 정보'에 포함된 "제품명"만을 사용해 추천하세요. 임의로 성분명을 제품명처럼 사용하지 마세요.
+    - 제품명은 참고 정보 내 명확히 명시되어 있으며, 예를 들어 "한삼근 황제 프리미엄 관절진액보"와 같은 형식입니다.
+    - 제품명은 무조건 참고 정보에서 가져온 이름 그대로 사용해야 합니다. '영양제A'와 같이 임의로 제품명을 지어내지 마세요.
 
     참고 정보:
     {context}
@@ -198,10 +203,10 @@ def rag_qa_system(question, df_items, index, user_id):
 
     3. 건강 문제: (건강 문제 3)
        추천 영양제: (제품명 3)
-       주요 원재료: (영양제 3의 주요 원재료) 
+       주요 원재료: (영양제 3의 주요 원재료)
        효과: (영양제 3의 효과)
 
-    위의 형식을 유지하고, 제공된 참고 정보에서 적절한 제품을 선택하여 추천하세요.
+    위의 형식을 유지하고, 참고 정보에서 해당 영양제의 '원재료'를 '주요 원재료'로 제시하세요.
     참고 정보에서 사용자의 영양제 섭취 목적(건강 목표)을 고려하여 추천하세요.
     사용자에게 필요한 영양성분 여러 가지가 동시에 포함되어 있는 영양제를 우선적으로 추천하세요.
     영양제의 부원료와 주요성분의 시너지 효과를 고려하여 추천하세요. 같은 주요 성분이라도 부원료(보조 성분)에 따라 흡수율 & 효과 차이 발생
@@ -213,7 +218,7 @@ def rag_qa_system(question, df_items, index, user_id):
     """
 
     response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4",
         messages=[
             {"role": "system",
              "content": "You are an assistant that provides specific supplement recommendations based on nutrients."},

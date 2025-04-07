@@ -11,9 +11,9 @@ GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 
 DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": "5432",
-    "database": "test",
-    "user": "postgres",
-    "password": "ummong1330"
+    "host": os.getenv("DB_HOST"),
+    "port": os.getenv("DB_PORT"),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
 }
