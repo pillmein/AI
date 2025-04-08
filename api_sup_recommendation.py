@@ -83,7 +83,15 @@ def recommend_supplements():
 
     # 2. 건강 문제 요약
     health_summary = generate_health_summary(survey_data)
-    question = f"사용자의 건강 문제는 {health_summary} 입니다. 이 사용자의 1~3순위 건강 문제 3가지에 각각 도움이 되는 영양제를 3가지 찾아 추천하세요."
+    print(health_summary)
+    question = f"""
+    사용자의 주요 건강 문제는 다음과 같습니다: {health_summary}.
+    이 중 가장 우선순위가 높은 건강 문제 3가지에 대해 각각 효과적인 영양제를 하나씩 추천해 주세요.
+
+    - 총 3개의 서로 다른 영양제를 추천해야 합니다.
+    - 각 영양제는 이름, 주요 성분, 기대 효과, 해결하고자 하는 건강 문제를 포함해야 합니다.
+    - 같은 영양제를 여러 건강 문제에 중복 추천하지 마세요.
+    """
 
     # 3. 추천 영양제 생성
     recommendation = rag_qa_system(question, df_items, index, user_id)

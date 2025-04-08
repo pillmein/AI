@@ -174,7 +174,7 @@ def rag_qa_system(question, df_items, index, user_id):
 
     # 4) LLM에 질의와 컨텍스트 전달하여 답변 생성
     prompt = f"""
-    당신은 건강 보조제 추천 전문가입니다. 사용자의 질문에 대해 반드시 아래 제공된 참고 정보의 '제품명' 중에서 가장 관련이 있는 제품명을 3가지 찾아 추천해주세요.
+    당신은 건강 보조제 추천 전문가입니다. 사용자의 질문에 대해 반드시 아래 제공된 참고 정보의 '제품명' 중에서 가장 관련이 있는 서로 다른 제품을 3가지 찾아 추천해주세요.
     
     📌 반드시 지켜야 할 규칙:
     1. "참고 정보"에 포함된 **제품명**만 추천해야 합니다. 임의로 제품명을 생성하지 마세요.
@@ -216,10 +216,10 @@ def rag_qa_system(question, df_items, index, user_id):
     """
 
     response = openai.chat.completions.create(
-        model="gpt-4",
+        model="gpt-3.5-turbo",
         messages=[
             {"role": "system",
-             "content": "You are an assistant that provides specific supplement recommendations based on nutrients."},
+             "content": "You are an assistant that provides specific supplement recommendations based on health summary."},
             {"role": "user", "content": prompt}
         ],
         max_tokens=800
