@@ -16,12 +16,6 @@ text_data = df_items.apply(
 model_name = 'sentence-transformers/all-MiniLM-L6-v2'
 embedder = SentenceTransformer(model_name)
 
-# 테이블 컬럼에 맞춰 텍스트 데이터 구성
-text_data = df_items.apply(
-    lambda row: f"제품명: {row['name']}, 효과: {row['effects']}, 원재료: {row['ingredients']}, 경고사항: {row['warnings']}",
-    axis=1
-).tolist()
-
 # 임베딩 생성
 embeddings = embedder.encode(text_data)
 
