@@ -9,7 +9,6 @@ FINE_TUNED_MODEL_ID = os.getenv("FINE_TUNED_MODEL_ID")
 SECRET_KEY = os.getenv("SECRET_KEY")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": os.getenv("DB_PORT"),
