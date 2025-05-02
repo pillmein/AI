@@ -2,6 +2,20 @@ import psycopg2
 import pandas as pd
 from config import DB_CONFIG
 
+def get_supplement_id_by_name(name):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        query = "SELECT id FROM api_supplements WHERE name ILIKE %s LIMIT 1"
+        cursor.execute(query, (f"%{name}%",))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return result[0] if result else None
+    except Exception as e:
+        print(f"DB 조회 중 오류 발생: {e}")
+        return None
+
 def get_user_survey(user_id):
     # PostgreSQL 연결 정보
     db_params = {**DB_CONFIG}

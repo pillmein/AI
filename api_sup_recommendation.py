@@ -4,7 +4,7 @@ import openai
 from flasgger import swag_from
 from sentence_transformers import SentenceTransformer
 from config import OPENAI_API_KEY, SECRET_KEY
-from dbconnect import get_user_survey
+from dbconnect import get_user_survey, get_supplement_id_by_name
 from gpt_sup_recommendation import rag_qa_system, load_data, generate_health_summary
 from naver_shopping_service import NaverShoppingService
 from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
@@ -121,6 +121,8 @@ def recommend_supplements():
         if supplement_name:
             image_url = naver_service.search_image_url(supplement_name)
             rec["imageUrl"] = image_url if image_url else "이미지 없음"
+            supplement_id = get_supplement_id_by_name(supplement_name)
+            rec["apiSupplementId"] = supplement_id if supplement_id is not None else -1  # -1로 에러 표시
 
     # 6. 결과 반환
     if len(recs) != 3:
