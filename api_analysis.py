@@ -161,7 +161,16 @@ def delete_analysis():
             'schema': {
                 'type': 'object',
                 'properties': {
-                    'supplements': {'type': 'array', 'items': {'type': 'string'}}
+                    'supplements': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer'},
+                                'name': {'type': 'string'}
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -181,8 +190,8 @@ def get_supplements():
         cur = conn.cursor()
 
         # ✅ 특정 사용자의 영양제 이름 가져오기
-        cur.execute("SELECT name FROM analyzed_supplements WHERE user_id = %s", (user_id,))
-        supplements = [row[0] for row in cur.fetchall()]  # 리스트로 변환
+        cur.execute("SELECT id, name FROM analyzed_supplements WHERE user_id = %s", (user_id,))
+        supplements = [{"id": row[0], "name": row[1]} for row in cur.fetchall()]
 
         cur.close()
         conn.close()
