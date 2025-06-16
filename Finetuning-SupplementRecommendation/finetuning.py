@@ -21,7 +21,7 @@ fine_tune_id = fine_tune_response.id
 print(f"🚀 Fine-tuning 시작! Fine-tune ID: {fine_tune_id}")
 
 # Fine-tune ID 입력
-fine_tune_id = "ftjob-Rhw7a8bg3tU6dd02TeXnqDuz"
+fine_tune_id = "ftjob-HgRtlk8OQou17vNemG9Qpomq"
 
 # 학습 진행 상태 확인
 status = openai.fine_tuning.jobs.retrieve(fine_tune_id)

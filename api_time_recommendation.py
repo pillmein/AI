@@ -7,7 +7,7 @@ import random
 from datetime import datetime
 from flasgger import swag_from
 from sentence_transformers import SentenceTransformer
-from config import OPENAI_API_KEY, SECRET_KEY, FINE_TUNED_MODEL_ID, DB_CONFIG
+from config import OPENAI_API_KEY, SECRET_KEY, FINE_TUNED_MODEL_ID_TIME, DB_CONFIG
 from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required
 
 # OpenAI API 키 설정
@@ -37,40 +37,6 @@ swagger_template = {
     },
     "security": [{"Bearer": []}]
 }
-
-
-def normalize_ingredient(ingredient):
-    """LLM을 사용하여 성분명을 일반적인 영양소명으로 변환"""
-    prompt = f"""
-    아래 성분명을 보다 일반적인 영양소 이름으로 변환해 주세요.
-
-    예시:
-    - 분리대두단백 → 단백질
-    - 아세로라 추출물 → 비타민 C
-    - 비타민B1 → 비타민 B
-    - 히알루론산 → 히알루론산 (그대로 유지)
-
-    아래 기준을 지켜주세요:
-    - 이미 일반적인 영양소 이름이면 그대로 반환
-    - 관련 영양소명이 명확하지 않으면 그대로 반환
-    - 한 단어로 간단하게 표현
-    - 함량 등 수식은 제외
-
-    성분명: {ingredient}
-    변환된 영양소명:
-    """
-
-    response = openai.chat.completions.create(
-        model=FINE_TUNED_MODEL_ID,
-        messages=[
-            {"role": "system", "content": "당신은 영양 성분을 일반 영양소명으로 변환하는 AI입니다."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=20
-    )
-
-    return response.choices[0].message.content.strip()
-
 
 def extract_time(text):
     """응답에서 구체적인 시간을 추출하여 HH:MM:SS 형식으로 변환"""
@@ -214,7 +180,7 @@ def supplement_timing():
         """
 
         response = openai.chat.completions.create(
-            model=FINE_TUNED_MODEL_ID,
+            model=FINE_TUNED_MODEL_ID_TIME,
             messages=[
                 {"role": "system", "content": "당신은 영양성분에 따라 영양제 복용 시간을 추천하는 전문가입니다. 사용자의 질문에 대해 255자 이내로, 정확하고 공손한 말투(입니다체)로 답변해 주세요. 모든 출력은 맞춤법, 띄어쓰기, 문장 구조를 정확하게 지켜야 하며, 자연스러운 한국어 문장으로 작성되어야 합니다."},
                 {"role": "user", "content": prompt}

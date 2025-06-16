@@ -4,7 +4,7 @@ import faiss
 import openai
 import numpy as np
 import pickle
-from config import OPENAI_API_KEY, FINE_TUNED_MODEL_ID, DB_CONFIG
+from config import OPENAI_API_KEY, FINE_TUNED_MODEL_ID_REC, DB_CONFIG
 from sentence_transformers import SentenceTransformer
 
 # OpenAI API 키 설정
@@ -136,7 +136,7 @@ def generate_health_summary(survey_data):
 
     # 3) GPT API 호출
     response = openai.chat.completions.create(
-        model=FINE_TUNED_MODEL_ID,  # 파인튜닝된 모델 사용
+        model=FINE_TUNED_MODEL_ID_REC,  # 파인튜닝된 모델 사용
         messages=[
             {"role": "system", "content": "You are an AI health expert providing concise health summaries."},
             {"role": "user", "content": prompt}
