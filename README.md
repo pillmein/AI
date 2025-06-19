@@ -84,6 +84,7 @@ main.py 실행 후 http://127.0.0.1:5000/apidocs/ 에서 API 실행 테스트 �
 ### AI Libraries & Tools
 
 1. **Flask**: [Flask 공식 사이트](https://flask.palletsprojects.com/en/stable/)
+
 ２. **OpenAI API** – [OpenAI 공식 사이트](https://platform.openai.com/)  
    GPT 모델을 통해 건강 분석, 영양제 추천, OCR 분석 요약 등에 사용
 
