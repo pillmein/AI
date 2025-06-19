@@ -33,6 +33,7 @@ ocr.py
 ocr_gpt_summary.py
 requirements.py
 supervisord.conf
+```
 
 <br>
 
@@ -58,18 +59,9 @@ cd AI
 <br><br>
 
 ```
-npx expo start
+ｐｙｔｈｏｎ ｍａｉｎ。ｐｙ
 ```
-
-### How to Build
-
 <br>
-
-```
-npx expo run:android
-```
-
-- 빌드 파일이 android 폴더에 생성됩니다.
 
 ### How to Test
 
