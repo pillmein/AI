@@ -1,41 +1,101 @@
-# AI
+## Source code에 대한 설명
+### 폴더 구조
 
-[POST] /recommend
-유저 ID를 기반으로 건강 문제를 분석하고 3가지 영양제 추천
+```
+📂 Frontend_Android
+├── 📂 android : Android 빌드 설정
+│   ├── 📂 app
+│   ├── build.gradle
+│   ├── gradle
+│   ├── gradlew
+│   └── settings.gradle
+├── 📂 app : 앱 코드 (화면, 컴포넌트, API 등)
+│   ├── App.tsx : 최상위 컴포넌트
+│   ├── 📂 api
+│   ├── 📂 assets
+│   ├── 📂 components : 재사용 가능한 UI 컴포넌트들
+│   ├── 📂 navigation : React Navigation 설정 (화면 이동 관련)
+│   └── 📂 screens : 화면 단위 컴포넌트들
+├── node_modules : 설치된 npm 패키지들
+├── app.json
+├── babel.config.js
+├── eas.json
+├── env.d.ts
+├── eslint.config.mjs
+├── index.ts
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+└── yarn.lock
+```
 
-[POST] /analyze
-OCR 스캔과 LLM 모델을 통해 영양제 정보 분석 결과 제공
+<br>
 
-[POST] /save_analysis
-영양제 정보 분석 결과 DB에 저장
+### 빌드 방식
+EAS (Expo Managed Workflow 기반) 에서 이후 EAS Build 사용 / 네이티브 기능 추가하면서 Bare로 전환
 
-[DELETE] /delete_analysis
-DB의 영양제 정보 분석 결과 삭제
+---
 
-[POST] /save_favorite
-찜한 영양제 DB에 저장
+### How to Install
 
-[GET] /get_favorite
-DB의 찜한 영양제 목록 불러오기
+<br>
+1. Repository 클론
+<br><br>
 
-[DELETE] /delete_favorite
-DB의 찜한 영양제 삭제
+```
+git clone https://github.com/pillmein/Frontend_Android.git
+cd Frontend_Android
+```
 
-[GET] /get_supplements
-DB의 저장된 영양제 목록 불러오기
+ <br>
+ 2. 의존성 설치
+<br><br>
 
-[GET] /get_supplement/<id>
-DB의 저장된 영양제 중 특정 영양제의 상세 정보 불러오기
+ ```
+npm install
+ ```
+- git clone을 하면 의존성 패키지들이 없기 때문에 설치가 필요합니다. 
+- 설치 완료 시 node_modules 폴더가 생성됩니다.
 
-[GET] /get_favorite/<api_supplement_id>
-DB의 찜한 영양제 중 특정 영양제의 상세 정보 불러오기
+ <br>
+3. 개발 서버 실행
+<br><br>
 
-[POST] /supplement-timing
-영양성분을 섭취하기 좋은 시간 추천
+```
+npx expo start
+```
 
-[POST] /health-analysis
-사용자의 건강 문제 분석
+### How to Build
 
-##Docker 빌드 및 실행##
-docker build -t multi-api .
-docker run -d -p 5000:5000 -p 5001:5001 -p 5002:5002 -p 5003:5003 -p 5004:5004 -p 5005:5005 multi-api
+<br>
+
+```
+npx expo run:android
+```
+
+- 빌드 파일이 android 폴더에 생성됩니다.
+
+### How to Test
+
+#### 주의
+.gitignore에 포함된 .env 와 android/app/google-services.json 파일이 있어야 정상 실행 가능합니다.
+
+<br>
+로컬 환경에서 테스트
+<br><br>
+
+```
+npx expo start
+```
+
+---
+
+## Open Source
+
+### Frontend Libraries & Tools
+
+1. **React-native + Expo**: [React native Official Site](https://reactnative.dev/)
+2. **Axios**: [Axios Official Site](https://axios-http.com/)
+3. **Styled-components**: [Styled-components Official Site](https://styled-components.com/)
+4. **Prettier**: [Prettier Official Site](https://prettier.io/)
+5. **Eslint**: [Eslint Official Site](https://eslint.org/)
