@@ -40,6 +40,7 @@ supervisord.conf
 ### 빌드 방식
 Ｄｏｃｋｅｒｆｉｌｅ
 작업 디렉토리 설정、 필요한 파일 복사、 패키지 설치、 Ｆｌａｓｋ 실행
+##Docker 빌드 및 실행## docker build -t multi-api . docker run -d -p 5000:5000 -p 5001:5001 -p 5002:5002 -p 5003:5003 -p 5004:5004 -p 5005:5005 multi-api
 
 ---
 
